@@ -1,0 +1,17 @@
+[
+  {
+    "name": "de.adschmidt.xkcdnotifier.MailAddresses",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true,
+    "fields": [
+      {
+        "name": "mailAddresses",
+        "allowWrite": true
+      }
+    ]
+  }
+]
