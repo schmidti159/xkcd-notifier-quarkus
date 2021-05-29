@@ -25,20 +25,10 @@ class MailServiceTest {
                 "https://imgs.xkcd.com/comics/new_bug.png");
 
         // act
-        mailService.sendMail("daniel-xkcd-test@ad-schmidt.de", comic);
+        mailService.sendMail("daniel-xkcd-test@ad-schmidt.de", comic)
+            .await().indefinitely();
 
         // assert: check mail
     }
 
-    @Test
-    public void generateMailContent() {
-        // arrange
-        Comic comic = new Comic("Title", "link", LocalDate.now(), "alt text", "img link");
-        // act
-        String message = mailService.buildHtmlMessage(comic);
-
-        //assert
-        assertThat(message).isNotNull()
-                .isEqualTo("<h1>Title</h1><p><a href=\"link\"><img src=\"img link\" alt=\"alt text\"/></a></p><p>alt text</p>");
-    }
 }

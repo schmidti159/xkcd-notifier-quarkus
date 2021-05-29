@@ -1,74 +1,44 @@
 package de.adschmidt.xkcdnotifier;
 
+import io.quarkus.mailer.Mail;
+import io.quarkus.mailer.MailTemplate;
+import io.quarkus.mailer.Mailer;
+import io.quarkus.mailer.reactive.ReactiveMailer;
+import io.quarkus.qute.CheckedTemplate;
+import io.smallrye.mutiny.Uni;
 import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.mail.*;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
+import javax.inject.Inject;
 import java.io.UnsupportedEncodingException;
 import java.util.Properties;
 
-@Log
+@Slf4j
 @ApplicationScoped
 public class MailService {
 
-    @ConfigProperty(name="mail.user")
-    String smtpUser;
-    @ConfigProperty(name="mail.password")
-    String smtpPassword;
-    @ConfigProperty(name="mail.host")
-    String smtpHost;
-    @ConfigProperty(name="mail.port")
-    String smtpPort;
-
-    public void sendMail(String mailAddress, Comic comic) throws UnsupportedEncodingException, MessagingException {
-
-
-        Session mailSession = Session.getDefaultInstance(buildProperties(), new Authenticator() {
-            @Override
-            protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(smtpUser, smtpPassword);
-            }
-        });
-        Message msg = new MimeMessage(mailSession);
-        msg.setFrom(new InternetAddress("noreply@ad-schmidt.de", "noreply"));
-        msg.addRecipient(Message.RecipientType.TO, new InternetAddress(mailAddress));
-
-        MimeMultipart content = new MimeMultipart();
-
-        MimeBodyPart htmlPart = new MimeBodyPart();
-        htmlPart.setContent(buildHtmlMessage(comic), "text/html");
-        content.addBodyPart(htmlPart);
-
-        msg.setContent(content);
-        msg.setSubject("[xkcd] "+comic.getTitle());
-        msg.saveChanges();
-        Transport.send(msg);
+    @CheckedTemplate
+    static class Templates {
+        public static native MailTemplate.MailTemplateInstance comicMail(Comic comic);
     }
 
-    private Properties buildProperties() {
-        Properties props = new Properties();
-        props.put("mail.transport.protocol","smtp");
-        props.put("mail.smtp.auth", true);
-        props.put("mail.smtp.host", smtpHost);
-        props.put("mail.smtp.port", smtpPort);
-        props.put("mail.smtp.starttls.enable", "true");
-        props.put("mail.smtp.tls", "true");
-        props.put("mail.smtp.ssl.checkserveridentity", "true");
-        props.put("mail.smtp.ssl.trust", smtpHost);
-        props.put("mail.smtp.ssl.protocols","TLSv1.2");
-        return props;
+    //@Inject
+    //ReactiveMailer mailer;
+
+
+    public Uni<Void> sendMail(String mailAddress, Comic comic) {
+
+        log.info("sending mail to {}", mailAddress);
+        return Templates.comicMail(comic)
+                .to(mailAddress)
+                .subject("[xkcd] "+comic.getTitle())
+                .send()
+                    .onFailure()
+                        .invoke(error -> log.error("could not sent mail.",error))
+                    .onCancellation()
+                        .invoke(() -> log.error("sending the mail was cancelled."));
     }
 
-    String buildHtmlMessage(Comic comic) {
-        StringBuilder result = new StringBuilder();
-        result.append("<h1>"+comic.getTitle()+"</h1>");
-        result.append("<p><a href=\""+comic.getLink()+"\"><img src=\""+comic.getImgLink()+"\" alt=\""+comic.getAltText()+"\"/></a></p>");
-        result.append("<p>"+comic.getAltText()+"</p>");
-        return result.toString();
-    }
 }

@@ -2,6 +2,8 @@ package de.adschmidt.xkcdnotifier;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,9 +29,10 @@ public class NotifierLambda implements RequestHandler<MailAddresses, String> {
         Instant start =Instant.now();
         Comic comic = feedReader.readTodaysComic();
         if(comic != null) {
-            for(String mailAddress : mailAddresses.getMailAddresses()) {
-                mailService.sendMail(mailAddress, comic);
-            }
+            Multi.createFrom().iterable(mailAddresses.getMailAddresses())
+                    .map(address -> mailService.sendMail(address, comic))
+                    .subscribe().asStream()
+                    .forEach(uno -> uno.await().indefinitely()); // we have to block. Otherwise the process might end to fast
         }
         log.info("execution of function took {} ms", Duration.between(start, Instant.now()));
         return "success";
